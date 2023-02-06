@@ -5,6 +5,7 @@ import re
 from .exceptions import StringDecodingError
 
 EOF = '\0'
+HEX_8BIT = "{:02X}"
 HEX_16BIT = "{:04X}"
 HEX_32BIT = "{:08X}"
 EXT_START_16 = '\\X2\\'
@@ -54,15 +55,20 @@ def step_encoder(s: str) -> str:
 # control_directive = page | alphabet | extended2 | extended4 | arbitrary .
 # page = '\S\'  character  - not supported
 # alphabet = '\P' upper '\'  - not supported
-# arbitrary = '\X\' hex_one - not supported
+# arbitrary = '\X\' HEX_8BIT {HEX_8BIT}
 # extended2 ='\X2\' HEX_16BIT { HEX_16BIT } EXT_END
 # extended2 ='\X4\' HEX_32BIT { HEX_32BIT } EXT_END
 
-EXT_MATCH = re.compile(r'\\(X[24])\\([0-9A-F]+)\\X0\\')
+EXT_MATCH = re.compile(r'\\(X[24]?)\\([0-9A-F]+)(\\X0\\)?')
 
 
 def _decode_bytes(ext_type: str, hexstr: str) -> str:
-    hex_char_count = 4 if ext_type == 'X2' else 8
+    if ext_type == 'X':
+        hex_char_count = 2
+    elif ext_type == 'X2':
+        hex_char_count = 4
+    else:
+        hex_char_count = 8
     length = len(hexstr)
     if length % hex_char_count:
         raise StringDecodingError
