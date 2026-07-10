@@ -49,7 +49,30 @@ def test_lexer_simple_string():
 
 def test_lexer_string_with_special_chars():
     r = list(p21.Lexer(r"'\X2\000F\X0\ ?*$',"))
-    assert r == ['\u000f ?*$', ',']
+    assert r == [' ?*$', ',']
+
+
+@pytest.mark.parametrize(
+    "char",
+    [
+        "ü",  # Latin-1 letter, e.g. accented characters in company names
+        "×",  # Latin-1 symbol, e.g. multiplication sign in dimensions
+        " ",  # Latin-1 control-range symbol, e.g. non-breaking space
+        "中",  # character outside the Latin-1 range entirely
+    ],
+)
+def test_lexer_string_with_raw_utf8_char(char):
+    # ISO 10303-21-2016 allows UTF-8 encoding, so some real-world exporters write
+    # printable non-ASCII characters directly instead of using the \X2\..\X0\ escape.
+    s = f"'A{char}B',"
+    r = list(p21.Lexer(s))
+    assert r == [f"A{char}B", ',']
+
+
+def test_lexer_string_rejects_non_printable_high_char():
+    # \x7f (DEL) is outside the printable range and must still be rejected.
+    with pytest.raises(p21.ParseError):
+        list(p21.Lexer("'A\x7fB',"))
 
 
 def test_lexer_string_with_escaped_apostrophe():

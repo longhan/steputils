@@ -10,7 +10,7 @@ from io import StringIO
 import re
 
 from .exceptions import ParseError, StepFileStructureError
-from .strings import step_encoder, step_decoder, StringBuffer, EOF
+from .strings import step_encoder, step_decoder, is_raw_unicode_char, StringBuffer, EOF
 
 __all__ = [
     "timestamp",
@@ -656,6 +656,8 @@ class Lexer:
                 s.append(b.get())
             elif current in IGNORE_DELIMETERS:
                 b.skip()
+            elif is_raw_unicode_char(current):
+                s.append(b.get())
             else:
                 raise ParseError(f'Found invalid character in string "{current}".')
 

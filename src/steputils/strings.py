@@ -2,6 +2,7 @@
 # Copyright (c) 2020 Manfred Moitzi
 # License: MIT License
 import re
+import unicodedata
 from .exceptions import StringDecodingError
 
 EOF = '\0'
@@ -80,6 +81,20 @@ def _decode_bytes(ext_type: str, hexstr: str) -> str:
         chars.append(char)
         start += hex_char_count
     return ''.join(chars)
+
+
+def is_raw_unicode_char(char: str) -> bool:
+    """Return True for a character outside the 7-bit ASCII range that ISO
+    10303-21-2016 allows to appear directly in a string literal, because the
+    standard permits UTF-8 encoded files. Some real-world exporters rely on
+    this and write non-ASCII characters directly instead of using the
+    \\X2\\..\\X0\\ extended encoding -- including non-ASCII space separators
+    (e.g. U+00A0 NO-BREAK SPACE), which str.isprintable() excludes even
+    though they are ordinary, renderable content.
+    """
+    if char <= "\x7e":
+        return False
+    return char.isprintable() or unicodedata.category(char) == "Zs"
 
 
 def step_decoder(s: str) -> str:
