@@ -54,13 +54,18 @@ def step_encoder(s: str) -> str:
 
 
 # control_directive = page | alphabet | extended2 | extended4 | arbitrary .
-# page = '\S\'  character  - not supported
-# alphabet = '\P' upper '\'  - not supported
-# arbitrary = '\X\' HEX_8BIT {HEX_8BIT}
-# extended2 ='\X2\' HEX_16BIT { HEX_16BIT } EXT_END
-# extended2 ='\X4\' HEX_32BIT { HEX_32BIT } EXT_END
-
-EXT_MATCH = re.compile(r'\\(X[24]?)\\([0-9A-F]+)(\\X0\\)?')
+# page = '\S\' character  - not decoded, left as written
+# alphabet = '\P' upper '\'  - not decoded, left as written
+# arbitrary = '\X\' HEX_ONE  - one character, from exactly two hex digits: '\X\AE820' is '®820'
+# extended2 = '\X2\' HEX_TWO { HEX_TWO } END_EXTENDED  - four hex digits a character
+# extended4 = '\X4\' HEX_FOUR { HEX_FOUR } END_EXTENDED  - eight hex digits a character
+# END_EXTENDED = '\X0\'
+#
+# A string is decoded in one pass, left to right, so a decoded character is never read again as
+# the start of a directive, and the backslash of an escaped backslash '\\' never starts one.
+# An '\X0\' after '\X\' and its two digits ends nothing and is dropped, as it always was.
+# '\X\' and a single hex digit is an invalid encoding, which the last alternative catches.
+DIRECTIVE = re.compile(r'\\(?:(\\)|X\\([0-9A-F]{2})(?:\\X0\\)?|(X[24]?)\\([0-9A-F]+)(\\X0\\)?)')
 
 
 def _decode_bytes(ext_type: str, hexstr: str) -> str:
@@ -98,17 +103,20 @@ def is_raw_unicode_char(char: str) -> bool:
 
 
 def step_decoder(s: str) -> str:
-    origin = s
-    while True:
-        r = EXT_MATCH.search(s)
-        if r is None:
-            break
+    if '\\' not in s:
+        return s
+
+    def decode(m) -> str:
+        if m[1]:  # an escaped backslash
+            return '\\'
+        if m[2]:  # arbitrary
+            return chr(int(m[2], 16))
         try:
-            decoded_chars = _decode_bytes(r[1], r[2])
-        except StringDecodingError:
-            raise StringDecodingError(f'Invalid extended encoding in string "{origin}".')
-        s = s.replace(r[0], decoded_chars)
-    return s.replace('\\\\', '\\')
+            return _decode_bytes(m[3], m[4])
+        except (StringDecodingError, ValueError):  # ValueError: a code point beyond U+10FFFF
+            raise StringDecodingError(f'Invalid extended encoding in string "{s}".')
+
+    return DIRECTIVE.sub(decode, s)
 
 
 class StringBuffer:

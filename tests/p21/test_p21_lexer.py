@@ -52,6 +52,12 @@ def test_lexer_string_with_special_chars():
     assert r == [' ?*$', ',']
 
 
+def test_lexer_string_with_arbitrary_encoding():
+    # '\X\' is followed by exactly two hex digits, as in Sandvik Coromant's 'CoroBore\X\AE820'
+    r = list(p21.Lexer(r"'CoroBore\X\AE820\X2\752830B730E030BB30C330C8\X0\',"))
+    assert r == ['CoroBore®820用シムセット', ',']
+
+
 @pytest.mark.parametrize(
     "char",
     [
