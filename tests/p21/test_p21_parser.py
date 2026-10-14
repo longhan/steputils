@@ -60,6 +60,20 @@ def test_data_order(stpfile):
     assert list(data.references()) == ['#8', '#10', '#5', '#6']
 
 
+def test_nul_byte_fails_the_file():
+    # the lexer says why the file ended early, where the parser said "Unexpected end of file."
+    with pytest.raises(p21.ParseError, match=r"^Found a NUL byte in line 10: the file is corrupt\.$"):
+        p21.loads(STEP_FILE.replace("'Graphisoft',$", "'Graphisoft'\x00,$"))
+    # also after the end, with content after it
+    with pytest.raises(p21.ParseError, match=r"^Found a NUL byte in line 17: the file is corrupt\.$"):
+        p21.loads(STEP_FILE + '\x00#99=X(());')
+
+
+def test_nul_bytes_padding_the_end():
+    assert list(p21.loads(STEP_FILE + '\x00').data[0].references()) == ['#8', '#10', '#5', '#6']
+    assert list(p21.loads(STEP_FILE + '\n\x00\x00').data[0].references()) == ['#8', '#10', '#5', '#6']
+
+
 # contains comments
 # typed parameter
 # complex entity instances

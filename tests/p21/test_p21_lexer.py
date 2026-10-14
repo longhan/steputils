@@ -81,6 +81,26 @@ def test_lexer_string_rejects_non_printable_high_char():
         list(p21.Lexer("'A\x7fB',"))
 
 
+def test_lexer_nul_byte():
+    # a corrupt byte of a vendor's STEP file, after a list and in a number
+    with pytest.raises(p21.ParseError, match=r"^Found a NUL byte in line 2: the file is corrupt\.$"):
+        list(p21.Lexer("#64=X((0.46,-3.));\n#65=X((-0.46,-3.)\x00;\n#66=X(());"))
+    with pytest.raises(p21.ParseError, match=r"^Found a NUL byte in line 1: the file is corrupt\.$"):
+        list(p21.Lexer("#88=X((-2.015,-2.2\x00044604925031E-16));"))
+
+
+def test_lexer_nul_bytes_padding_the_end():
+    # read as the end, as before
+    assert list(p21.Lexer("#1=X(());\x00")) == ['#1', '=', 'X', '(', '(', ')', ')', ';']
+    assert list(p21.Lexer("#1=X(());\n\x00\x00 \x1a")) == ['#1', '=', 'X', '(', '(', ')', ')', ';']
+
+
+def test_lexer_line_number_counts_new_lines_in_strings():
+    l = p21.Lexer("'A\nB',\n%")
+    with pytest.raises(p21.ParseError, match=r"^Unexpected character % in line 3\.$"):
+        list(l)
+
+
 def test_lexer_string_with_escaped_apostrophe():
     r = list(p21.Lexer("'Henry''s Pub',"))
     assert r == ["Henry's Pub", ',']

@@ -141,3 +141,7 @@ class StringBuffer:
 
     def skip(self, n: int = 1) -> None:
         self._cursor += n
+
+    def content_after_cursor(self) -> bool:
+        """Return True when anything but white space and NULs is left from the cursor on."""
+        return any(char > ' ' for char in self._buffer[self._cursor:])

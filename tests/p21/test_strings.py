@@ -19,6 +19,16 @@ def test_buffer():
     assert b.look(3) == EOF
 
 
+def test_buffer_content_after_cursor():
+    b = StringBuffer('a\0 \n\x1a\0')
+    assert b.content_after_cursor() is True
+    b.get()
+    assert b.content_after_cursor() is False
+    b = StringBuffer('\0;')
+    assert b.content_after_cursor() is True
+    assert StringBuffer('').content_after_cursor() is False
+
+
 def test_string_encoder():
     assert step_encoder('ABC') == 'ABC'
     assert step_encoder('"') == '"'

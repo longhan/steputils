@@ -621,6 +621,12 @@ class Lexer:
                     f"Unexpected character {current} in line {self.buffer.line_number}."
                 )
             current = self.buffer.look()
+        # the loop stops at a NUL as at the end of the buffer, as StringBuffer gives EOF for both; a NUL
+        # with content after it is a corrupt byte, where NULs padding the end are read as the end
+        if self.buffer.content_after_cursor():
+            raise ParseError(
+                f"Found a NUL byte in line {self.buffer.line_number}: the file is corrupt."
+            )
 
     def comment(self):
         """Skip comments."""
@@ -655,7 +661,7 @@ class Lexer:
             elif current in STRING_CHARS:
                 s.append(b.get())
             elif current in IGNORE_DELIMETERS:
-                b.skip()
+                b.get()  # dropped, but a new line counted
             elif is_raw_unicode_char(current):
                 s.append(b.get())
             else:
